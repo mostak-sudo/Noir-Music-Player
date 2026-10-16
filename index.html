@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#000000"><title>Noir Music</title>
+<style>
+:root{color-scheme:dark;--bg:#000;--panel:#111;--line:#242424;--white:#f5f5f5;--muted:#969696;--lime:#b7ff00}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--white);font-family:system-ui,-apple-system,Roboto,Arial,sans-serif}
+.app{max-width:720px;margin:auto;padding:24px 20px 190px;min-height:100dvh}
+.brand{font-size:12px;letter-spacing:.3em;color:var(--lime);font-weight:800}
+h1{font-size:clamp(34px,9vw,54px);line-height:1.02;letter-spacing:-.045em;margin:22px 0 12px}
+.sub{font-size:10px;letter-spacing:.16em;color:var(--muted)}
+.section{display:flex;align-items:center;justify-content:space-between;margin:34px 0 12px;font-size:12px;font-weight:800;letter-spacing:.13em}
+.pill{border:1px solid var(--line);background:#090909;color:var(--muted);padding:8px 12px;border-radius:99px;font-size:11px}
+.actions{display:flex;gap:10px;margin-top:24px}.btn{border:0;border-radius:14px;background:var(--lime);color:#000;padding:14px 17px;font-weight:800;font-size:13px;cursor:pointer}.btn.secondary{background:#171717;color:var(--white);border:1px solid #292929}
+.empty{padding:30px 18px;border:1px dashed #292929;border-radius:18px;color:var(--muted);text-align:center;line-height:1.6;font-size:14px}
+.track{display:flex;align-items:center;gap:13px;padding:14px 12px;border-bottom:1px solid #1b1b1b;border-radius:12px;cursor:pointer}.track.active{background:#151515}
+.num{width:28px;color:var(--lime);font-size:11px;font-weight:800}.meta{min-width:0;flex:1}.title{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:14px;font-weight:700}.artist{font-size:11px;color:var(--muted);margin-top:4px}.trackplay{color:var(--lime);font-size:14px}
+.player{position:fixed;bottom:0;left:0;right:0;background:rgba(10,10,10,.97);border-top:1px solid #242424;padding:15px 20px calc(15px + env(safe-area-inset-bottom));backdrop-filter:blur(20px)}
+.player-inner{max-width:680px;margin:auto}.playing-label{font-size:9px;letter-spacing:.2em;color:var(--lime);font-weight:800}.nowtitle{font-weight:800;margin-top:7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.nowartist{color:var(--muted);font-size:12px;margin-top:3px}
+.progress{display:flex;align-items:center;gap:10px;margin-top:12px;font-size:10px;color:var(--muted)}input[type=range]{accent-color:var(--lime);width:100%;min-width:0}
+.controls{display:flex;align-items:center;justify-content:center;gap:22px;margin-top:9px}.iconbtn{background:transparent;color:var(--white);border:0;font-size:23px;padding:8px;cursor:pointer}.play{background:var(--lime);color:#000;border:0;border-radius:50%;width:52px;height:52px;font-size:21px;font-weight:900;cursor:pointer}
+.note{font-size:11px;color:#777;margin-top:20px;line-height:1.5}
+input[type=file]{display:none}
+</style>
+</head>
+<body>
+<main class="app">
+  <div class="brand">NOIR</div>
+  <h1>Your music.<br>Your space.</h1>
+  <div class="sub">LOCAL AUDIO&nbsp; • &nbsp;NO ADS&nbsp; • &nbsp;PURE BLACK</div>
+  <div class="actions">
+    <button class="btn" id="addBtn">＋ Add music</button>
+    <button class="btn secondary" id="clearBtn">Clear library</button>
+    <input id="files" type="file" accept="audio/*,.mp3,.m4a,.aac,.flac,.wav,.ogg,.opus" multiple>
+  </div>
+  <div class="section"><span>YOUR LIBRARY</span><span class="pill" id="count">0 TRACKS</span></div>
+  <div id="list"><div class="empty">Your library is waiting.<br>Tap <b>Add music</b> and choose audio files from your phone.</div></div>
+  <p class="note">Noir Music plays audio files you choose on your device. It doesn't upload your music, use ads, or need an account. Your selected files may need to be selected again after closing the page.</p>
+</main>
+<div class="player">
+  <div class="player-inner">
+    <div class="playing-label">NOW PLAYING</div>
+    <div class="nowtitle" id="nowTitle">Choose a song</div><div class="nowartist" id="nowArtist">Your local audio</div>
+    <div class="progress"><span id="elapsed">0:00</span><input id="seek" type="range" min="0" max="1000" value="0"><span id="duration">0:00</span></div>
+    <div class="controls">
+      <button class="iconbtn" id="prev" aria-label="Previous">⟨</button>
+      <button class="play" id="play" aria-label="Play">▶</button>
+      <button class="iconbtn" id="next" aria-label="Next">⟩</button>
+    </div>
+  </div>
+</div>
+<audio id="audio" preload="metadata"></audio>
+<script>
+const $=id=>document.getElementById(id), audio=$('audio');let tracks=[],idx=-1,urls=[];
+const fmt=s=>{if(!Number.isFinite(s))return'0:00';let m=Math.floor(s/60),r=Math.floor(s%60);return m+':'+String(r).padStart(2,'0')};
+$('addBtn').onclick=()=>$('files').click();
+$('files').onchange=e=>{const chosen=[...e.target.files];chosen.forEach(f=>{if(!f.type.startsWith('audio/')&&!/\.(mp3|m4a|aac|flac|wav|ogg|opus)$/i.test(f.name))return;tracks.push({file:f,name:f.name.replace(/\.[^.]+$/,''),artist:'Local audio'});});render();if(idx<0&&tracks.length)playTrack(0);e.target.value=''};
+$('clearBtn').onclick=()=>{audio.pause();audio.removeAttribute('src');audio.load();urls.forEach(URL.revokeObjectURL);urls=[];tracks=[];idx=-1;$('nowTitle').textContent='Choose a song';$('nowArtist').textContent='Your local audio';$('play').textContent='▶';render()};
+function render(){ $('count').textContent=tracks.length+' TRACK'+(tracks.length===1?'':'S');const list=$('list');list.innerHTML='';if(!tracks.length){list.innerHTML='<div class="empty">Your library is waiting.<br>Tap <b>Add music</b> and choose audio files from your phone.</div>';return}tracks.forEach((t,i)=>{let row=document.createElement('div');row.className='track'+(i===idx?' active':'');let n=document.createElement('div');n.className='num';n.textContent=String(i+1).padStart(2,'0');let meta=document.createElement('div');meta.className='meta';let title=document.createElement('div');title.className='title';title.textContent=t.name;let artist=document.createElement('div');artist.className='artist';artist.textContent=t.artist;meta.append(title,artist);let play=document.createElement('div');play.className='trackplay';play.textContent=i===idx&&!audio.paused?'Ⅱ':'▶';row.append(n,meta,play);row.onclick=()=>playTrack(i);list.append(row)})}
+function playTrack(i){if(!tracks.length)return;idx=(i+tracks.length)%tracks.length;const t=tracks[idx];audio.src=URL.createObjectURL(t.file);urls.push(audio.src);$('nowTitle').textContent=t.name;$('nowArtist').textContent=t.artist;audio.play().then(()=>{$('play').textContent='Ⅱ';render()}).catch(()=>{$('play').textContent='▶';render()});render()}
+$('play').onclick=()=>{if(idx<0){if(tracks.length)playTrack(0);return}if(audio.paused)audio.play().then(()=>{$('play').textContent='Ⅱ';render()});else{audio.pause();$('play').textContent='▶';render()}};
+$('prev').onclick=()=>{if(audio.currentTime>3){audio.currentTime=0}else if(tracks.length)playTrack(idx-1)};
+$('next').onclick=()=>{if(tracks.length)playTrack(idx+1)};
+audio.onended=()=>{if(tracks.length)playTrack(idx+1)};
+audio.ontimeupdate=()=>{$('elapsed').textContent=fmt(audio.currentTime);$('duration').textContent=fmt(audio.duration);if(Number.isFinite(audio.duration)&&audio.duration>0)$('seek').value=audio.currentTime/audio.duration*1000};
+$('seek').oninput=e=>{if(Number.isFinite(audio.duration)&&audio.duration>0)audio.currentTime=e.target.value/1000*audio.duration};
+render();
+</script>
+</body></html>
